@@ -3,6 +3,7 @@
         {
             "name": "STM32",
             "includePath": [
+                "${workspaceRoot}/cpp/inc",
                 "${workspaceRoot}/inc",
                 "${config:bluenrgDkLocation}/hal/inc",
                 "${config:bluenrgDkLocation}/BlueNRG1_Periph_Driver/inc",
