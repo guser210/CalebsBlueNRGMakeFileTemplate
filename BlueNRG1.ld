@@ -381,4 +381,15 @@ SECTIONS
   }
 
   .ARM.attributes 0 : { *(.ARM.attributes) }
+  .ARM.exidx :
+  {
+    __exidx_start = .;
+    __exidx_end = .;
+  }
+  .ARM.cxa :
+  {
+    __cxa_end_cleanup = .;
+    __gxx_personality_v0 = .;
+    abort = .;
+  }
 }

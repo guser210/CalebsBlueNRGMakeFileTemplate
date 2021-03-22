@@ -2,6 +2,7 @@ PROJECT = ${BINARY_FILE_NAME}
 # SRCS: all source files from src directory
 SRCS = $(wildcard src/*.c) \
 		$(wildcard libs/*.c) 
+SRCSCXX = $(wildcard cpp/src/*.cpp)
 
 PERIPH_DRIVER_PATH = BlueNRG1_Periph_Driver/src
 HAL_SOURCE_PATH = hal/src
@@ -47,6 +48,7 @@ OBJ = obj/
 
 # OBJS: list of object files
 OBJS = $(addprefix $(OBJ),$(notdir $(SRCS:.c=.o)))
+OBJS += $(addprefix $(OBJ),$(notdir $(SRCSCXX:.cpp=.o)))
 
 S_OBJS = $(addprefix $(assembly/made/),$(notdir $(S_SRCS:.S=.o)))
 
@@ -58,6 +60,7 @@ C_SWITCH_OBJS = $(addprefix $(OBJ),$(notdir $(CONTEXT_SWITCH:.s=.o)))
 INC = -I${BLUENRG_DK_LIB_PATH}/Bluetooth_LE/library/static_stack \
 	-I${BLUENRG_DK_LIB_PATH}/BLE_Application/Profile_Central/includes \
 	-I${BLUENRG_DK_LIB_PATH}/Bluetooth_LE/library/static_stack \
+	-I./cpp/inc \
 	-I./inc \
 	-I${BLUENRG_DK_LIB_PATH}/hal/inc \
 	-I${BLUENRG_DK_LIB_PATH}/BlueNRG1_Periph_Driver/inc \
@@ -84,8 +87,22 @@ LD = arm-none-eabi-gcc#arm-none-eabi-ld #linker
 AS = arm-none-eabi-as
 OBJCOPY = arm-none-eabi-objcopy #final executable builder
 # FLASHER = lm4flash #flashing utility
+ifeq ($(OS),Windows_NT)
+# MKDIR   = if not exist $(@D) mkdir $(@D)#creates folders if not present
+CreateDir = if not exist $1 mkdir $1
+FixPath = $1
+CopySources = $(foreach file,$(subst /,\,$(SRCS_TO_COPY)),@if not exist "libs/$(notdir $(file))" @copy "$(file)" "libs/$(notdir $(file))"${\n})
 RM      = rmdir /s
-MKDIR   = if not exist $(@D) mkdir $(@D)#creates folders if not present
+COPY = copy
+else
+MKDIR   = if [ -d $(@D) ] ; then echo "dir $(@D) exists" ; else mkdir $(@D) ; fi #creates folders if not present
+CreateDir = if [ -d $1 ] ; then echo "dir $1 exists" ; else mkdir $1 ; fi
+FixPath = $(subst \,/,$1)
+CopySources = $(foreach file,$(call FixPath,$(SRCS_TO_COPY)),@if [ -f "libs/$(notdir $(file))" ]; then echo file exists ; else $(COPY) "$(file)" "libs/$(notdir $(file))"; fi ${\n} ) 
+RM      = rm -f
+COPY = cp
+endif
+
 # COPY	= copy "libs\\misc.c" "./libs/misc2.c"
 
 DEFINES = -DBLUENRG1_DEVICE -DDEBUG -DHS_SPEED_XTAL=HS_SPEED_XTAL_16MHZ -DLS_SOURCE=LS_SOURCE_INTERNAL_RO -DSMPS_INDUCTOR=SMPS_INDUCTOR_4_7uH -Dmcpu=cortexm0
@@ -114,12 +131,10 @@ all: post-build
 # Copies necessary files from source dirs 
 pre-build:
 	@echo PRE
-	if not exist "libs" mkdir "libs"
-	$(foreach file,$(subst /,\,$(SRCS_TO_COPY)),@if not exist "libs/$(notdir $(file))" @copy "$(file)" "libs/$(notdir $(file))"${\n})
-	$(info $$SRCS is [${SRCS}])
 
 post-build: main-build
 	@echo POST
+	rm obj/*
 
 main-build: pre-build
 	$(MAKE) --no-print-directory bin/$(PROJECT).bin
@@ -133,6 +148,10 @@ $(assembly/made/)%.o: aeabi-cortexm0/%.S
 	$(AS) $(ASFLAGS) -c $< -o $@
 
 $(OBJ)%.o: src/%.c
+	$(MKDIR)
+	$(CC) -o $@ $^ $(INC) $(CFLAGS)
+
+$(OBJ)%.o: cpp/src/%.cpp
 	$(MKDIR)
 	$(CC) -o $@ $^ $(INC) $(CFLAGS)
 
